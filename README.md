@@ -109,7 +109,7 @@ oneRow["State"] = "Georgia"
 oneRow["Capital"] = "Atlanta"
 
 cols := tbl.Columns.Get()
-rows := tbl.Rows.GetMaps()
+rows := tbl.Rows.GetMap()
 
 fmt.Print(strings.Repeat(" ", 4))
 for j := 0; j < len(cols); j++ {

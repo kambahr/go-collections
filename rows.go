@@ -2,6 +2,7 @@
 package collections
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 )
@@ -18,10 +19,12 @@ type rowInterface interface {
 	AddWithTag(tag string) RowMap
 	Add() RowMap
 	Count() int
-	GetMaps() []RowMap
+	GetMap() []RowMap
+	GetJSON() string
 	GetArray() []Row
 	GetRow(inx int) Row
 	GetRowMap(i int) RowMap
+	GetRowJSON(i int) string
 	Clear()
 }
 
@@ -36,7 +39,6 @@ type rowHdlr struct {
 func (r *rowHdlr) GetRowMap(inx int) RowMap {
 
 	for i := 0; i < len(r.RowMaps); i++ {
-
 		if i == inx {
 			return r.RowMaps[i]
 		}
@@ -44,7 +46,11 @@ func (r *rowHdlr) GetRowMap(inx int) RowMap {
 
 	return nil
 }
+func (r *rowHdlr) GetRowJSON(inx int) string {
+	jrowm, _ := json.Marshal(r.GetRowMap(inx))
 
+	return strings.ReplaceAll(string(jrowm), `\"`, `"`)
+}
 func (r *rowHdlr) GetRow(indx int) Row {
 
 	if indx < 0 {
@@ -75,8 +81,12 @@ func (r *rowHdlr) GetArray() []Row {
 
 	return r.Rows
 }
+func (r *rowHdlr) GetJSON() string {
+	jrowm, _ := json.Marshal(r.GetMap())
 
-func (r *rowHdlr) GetMaps() []RowMap {
+	return strings.ReplaceAll(string(jrowm), `\"`, `"`)
+}
+func (r *rowHdlr) GetMap() []RowMap {
 
 	cols := r.Columns.Get()
 
