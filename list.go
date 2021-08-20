@@ -2,9 +2,15 @@
 package collections
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"reflect"
 	"sync"
 )
@@ -15,7 +21,7 @@ type Element struct {
 	Value interface{} `json:"value"`
 }
 
-// listHdlr is the handles listInterface.
+// listHdlr is handles listInterface.
 type listHdlr struct {
 	List []Element
 
@@ -36,10 +42,11 @@ type listInterface interface {
 	KeyExists(k string) bool
 	ValueExists(v string) bool
 	Get() *[]Element
+	Set(e []Element)
 	GetItem(i int) (Element, error)
 	SetItem(i int, v interface{}) error
 	GetJSON() string
-	Map() map[string]interface{}
+	GetMap() map[string]interface{}
 	IndexOfKey(key string) int
 	IndexOfValue(v interface{}) int
 	InsertAt(i int, k string, v interface{}) error
@@ -51,6 +58,10 @@ type listInterface interface {
 	SetKey(oldKey string, newkey string) error
 	SetValue(k string, v interface{}) error
 	GetValue(key string) (interface{}, error)
+	Serialize() ([]byte, error)
+	SerializeToFile(fPath string) error
+	Deserialize(b []byte) ([]Element, error)
+	DeserializeFromFile(fPath string) ([]Element, error)
 }
 
 // Add adds an item to the top of the list.
@@ -274,7 +285,7 @@ func (c *listHdlr) GetItem(i int) (Element, error) {
 // GetValue returns a value by its key.
 func (c *listHdlr) GetValue(k string) (interface{}, error) {
 
-	v := c.Map()[k]
+	v := c.GetMap()[k]
 
 	if v == nil {
 		return nil, errors.New("not found")
@@ -290,6 +301,7 @@ func (c *listHdlr) GetJSON() string {
 	}
 
 	b, _ := json.Marshal(c.List)
+	b = bytes.ReplaceAll(b, []byte(`\"`), []byte(`"`))
 
 	// on error, the return will be nil (and not {}).
 
@@ -302,7 +314,7 @@ func (c *listHdlr) Count() int {
 }
 
 // Map returns a map of key/value of the entire list.
-func (c *listHdlr) Map() map[string]interface{} {
+func (c *listHdlr) GetMap() map[string]interface{} {
 	return c.listMap
 }
 
@@ -417,7 +429,7 @@ func remove(e []Element, i int) []Element {
 // KeyExists checks the map of the list to see if the key exists.
 func (c *listHdlr) KeyExists(k string) bool {
 
-	if c.Map()[k] != nil {
+	if c.GetMap()[k] != nil {
 		return true
 	}
 
@@ -551,7 +563,125 @@ func (c *listHdlr) SortByKey(order SortOrder) {
 	c.rebuildMap()
 }
 
+// Set sets the main list to the one passed in the arg.
+func (c *listHdlr) Set(e []Element) {
+	c.List = e
+}
+
 // Get returns the entire list.
 func (c *listHdlr) Get() *[]Element {
 	return &c.List
+}
+
+func (c *listHdlr) Deserialize(b []byte) ([]Element, error) {
+
+	var err error
+	var m map[string]interface{}
+
+	b, err = base64.StdEncoding.DecodeString(string(b))
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		return nil, err
+	}
+	// buf := bytes.NewReader(b)
+	// err = gob.NewDecoder(buf).Decode(&m)
+	// if err != nil && err.Error() != "EOF" {
+	// 	return nil, err
+	// }
+
+	if m == nil || len(m) == 0 {
+		return nil, errors.New("no items found")
+	}
+
+	var e []Element
+
+	for k, v := range m {
+		var elm Element
+		elm.Key = k
+		elm.Value = v
+		e = append(e, elm)
+	}
+
+	return e, nil
+}
+
+// Serialze turns a list into bytes of gob.
+func (c *listHdlr) Serialize() ([]byte, error) {
+
+	var data []byte
+	var encoded bytes.Buffer
+
+	items := c.GetMap()
+
+	encode := gob.NewEncoder(&encoded)
+	err := encode.Encode(items)
+	if err != nil {
+		return nil, err
+	}
+
+	s64based := base64.StdEncoding.EncodeToString(encoded.Bytes())
+	data = []byte(s64based)
+
+	return data, nil
+}
+func (c *listHdlr) DeserializeFromFile(fPath string) ([]Element, error) {
+
+	f, err := os.Open(fPath)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	reader.Close()
+	f.Close()
+
+	e, err := c.Deserialize(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return e, nil
+}
+
+func (c *listHdlr) SerializeToFile(fPath string) error {
+
+	var data []byte
+	//var encoded bytes.Buffer
+
+	items := c.GetMap()
+	b, err := json.Marshal(items)
+	if err != nil {
+		return err
+	}
+	s64based := base64.StdEncoding.EncodeToString(b)
+	data = []byte(s64based)
+
+	// encode := gob.NewEncoder(&encoded)
+	// err := encode.Encode(items)
+	// if err != nil {
+	// 	return err
+	// }
+	// s64based := base64.StdEncoding.EncodeToString(encoded.Bytes())
+	// data = []byte(s64based)
+
+	// Compress before writing to file.
+	f, err := os.Create(fPath)
+	if err != nil {
+		return err
+	}
+	w := gzip.NewWriter(f)
+	w.Write(data)
+	w.Close()
+
+	return nil
 }

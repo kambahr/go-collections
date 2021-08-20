@@ -10,10 +10,13 @@ func NewCollection() *Collection {
 	m := make(map[string]interface{}, 0)
 	c.List = &listHdlr{list, -1, false, m}
 
-	var col []Column
+	var col *Cols
+	var rows *Rows
+	//var p *private
+	c.Table = &Table{"", col, rows} //, p}
 
-	var t *Table
-	c.Table = &tableHdlr{t, &colHdlr{col}}
+	var tblArry []Table
+	c.Dataset = &Dataset{tblArry}
 
 	return &c
 }

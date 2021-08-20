@@ -2,12 +2,12 @@
 package collections
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 )
-
-type IRows rowInterface
 
 // Row is array of row interfaces
 type Row []interface{}
@@ -15,7 +15,7 @@ type Row []interface{}
 type RowMap map[string]interface{}
 
 // rowInterface defines the methods for Row operatins.
-type rowInterface interface {
+type IRows interface {
 	AddWithTag(tag string) RowMap
 	Add() RowMap
 	Count() int
@@ -28,16 +28,16 @@ type rowInterface interface {
 	Clear()
 }
 
-// rowHdlr defines fields that comprise one Row; and it acts
+// Rows defines fields that comprise one Row; and it acts
 // as a bridge between the caller and its interface.
-type rowHdlr struct {
+type Rows struct {
 	RowMaps []RowMap
 	Rows    []Row
-	Columns Columns
+	Cols    Cols
+	Columns []Column
 }
 
-func (r *rowHdlr) GetRowMap(inx int) RowMap {
-
+func (r *Rows) GetRowMap(inx int) RowMap {
 	for i := 0; i < len(r.RowMaps); i++ {
 		if i == inx {
 			return r.RowMaps[i]
@@ -46,12 +46,13 @@ func (r *rowHdlr) GetRowMap(inx int) RowMap {
 
 	return nil
 }
-func (r *rowHdlr) GetRowJSON(inx int) string {
-	jrowm, _ := json.Marshal(r.GetRowMap(inx))
+func (r *Rows) GetRowJSON(inx int) string {
+	b, _ := json.Marshal(r.GetRowMap(inx))
+	b = bytes.ReplaceAll(b, []byte(`\"`), []byte(`"`))
 
-	return strings.ReplaceAll(string(jrowm), `\"`, `"`)
+	return string(b)
 }
-func (r *rowHdlr) GetRow(indx int) Row {
+func (r *Rows) GetRow(indx int) Row {
 
 	if indx < 0 {
 		return nil
@@ -66,37 +67,38 @@ func (r *rowHdlr) GetRow(indx int) Row {
 	return nil
 }
 
-func (r *rowHdlr) GetArray() []Row {
+func (r *Rows) GetArray() []Row {
 
-	cols := r.Columns.Get()
+	cols := r.Cols.Get()
 
 	for i := 0; i < len(r.Rows); i++ {
 		for j := 0; j < len(cols); j++ {
 			if r.RowMaps[i][cols[j].Name] != nil {
 				r.Rows[i][j] = r.RowMaps[i][cols[j].Name]
-				cols[j].Type = reflect.TypeOf(r.RowMaps[i][cols[j].Name])
+				cols[j].Type = fmt.Sprintf("%v", reflect.TypeOf(r.RowMaps[i][cols[j].Name]))
 			}
 		}
 	}
 
 	return r.Rows
 }
-func (r *rowHdlr) GetJSON() string {
-	jrowm, _ := json.Marshal(r.GetMap())
+func (r *Rows) GetJSON() string {
+	b, _ := json.Marshal(r.GetMap())
+	b = bytes.ReplaceAll(b, []byte(`\"`), []byte(`"`))
 
-	return strings.ReplaceAll(string(jrowm), `\"`, `"`)
+	return string(b)
 }
-func (r *rowHdlr) GetMap() []RowMap {
+func (r *Rows) GetMap() []RowMap {
 
-	cols := r.Columns.Get()
+	cols := r.Cols.Get()
 
 	for i := 0; i < len(r.Rows); i++ {
 		for j := 0; j < len(cols); j++ {
 			if r.RowMaps[i][cols[j].Name] != nil {
 				r.Rows[i][j] = r.RowMaps[i][cols[j].Name]
 
-				// Keep track of the type dymanically.
-				cols[j].Type = reflect.TypeOf(r.RowMaps[i][cols[j].Name])
+				// Keep track of the col type
+				cols[j].Type = fmt.Sprintf("%v", reflect.TypeOf(r.RowMaps[i][cols[j].Name]))
 			}
 		}
 	}
@@ -104,15 +106,15 @@ func (r *rowHdlr) GetMap() []RowMap {
 	return r.RowMaps
 }
 
-func (r *rowHdlr) Clear() {
+func (r *Rows) Clear() {
 	r.RowMaps = make([]RowMap, 0)
 }
 
-func (r *rowHdlr) Count() int {
+func (r *Rows) Count() int {
 	return len(r.RowMaps)
 }
 
-func (r *rowHdlr) AddWithTag(t string) RowMap {
+func (r *Rows) AddWithTag(t string) RowMap {
 	t = strings.Trim(t, " ")
 	if t == "" {
 		return r.add("")
@@ -121,17 +123,17 @@ func (r *rowHdlr) AddWithTag(t string) RowMap {
 }
 
 // Add adds a row. It makes the row available via map and indexed array.
-func (r *rowHdlr) Add() RowMap {
+func (r *Rows) Add() RowMap {
 	return r.add("")
 }
 
-func (r *rowHdlr) add(t string) RowMap {
+func (r *Rows) add(t string) RowMap {
 	var row RowMap
 
-	cols := r.Columns.Get()
+	cols := r.Cols.Get()
 
 	if t != "" {
-		r.Columns.setTag(t)
+		r.Cols.setTag(t)
 	}
 	// Mapped
 	row = make(map[string]interface{}, 1)

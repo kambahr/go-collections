@@ -3,35 +3,62 @@ package collections
 
 import (
 	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 )
 
-type Table struct {
-	Name    string
-	Columns Columns
-	Rows    IRows
-}
-
 // ITable is the table interface.
 type ITable interface {
-	Create(name string) *Table
+	Create(name string) (*Table, error)
 	GetJSON(tbl *Table) string
+
 	Serialize(tbl *Table) ([]byte, error)
-	Deserialize(b []byte) (*Table, error)
+	Deserialize(data []byte) (*Table, error)
+
+	SerializeToFile(tbl *Table, fPath string) error
+	DeserializeFromFile(fPath string) (*Table, error)
 }
 
 // tableHdlr is the handler for the ITable interface.
-type tableHdlr struct {
-	Table *Table
-	Col   Columns
+type Table struct {
+	Name string
+	Cols IColumn
+	Rows IRows
 }
 
-func (t *tableHdlr) Deserialize(b []byte) (*Table, error) {
+func (t *Table) SerializeToFile(tbl *Table, fPath string) error {
 
+	data, err := t.Serialize(tbl)
+	if err != nil {
+		return err
+	}
+
+	// Compress before writing to file.
+	f, err := os.Create(fPath)
+	if err != nil {
+		return err
+	}
+	w := gzip.NewWriter(f)
+	w.Write(data)
+	w.Close()
+
+	return nil
+}
+func (t *Table) Deserialize(b []byte) (*Table, error) {
+
+	var err error
 	var m []map[string]interface{}
+
+	b, err = base64.StdEncoding.DecodeString(string(b))
+	if err != nil {
+		return nil, err
+	}
 
 	tblName, b, err := getTableNameFromData(b)
 	if err != nil {
@@ -48,11 +75,14 @@ func (t *tableHdlr) Deserialize(b []byte) (*Table, error) {
 		return nil, errors.New("no rows found")
 	}
 
-	tbl := t.Create(tblName)
-	for k := range m[0] {
-		tbl.Columns.Add(k)
+	tbl, err := t.Create(tblName)
+	if err != nil {
+		return nil, errors.New(err.Error())
 	}
-	cols := tbl.Columns.Get()
+	for k := range m[0] {
+		tbl.Cols.Add(k)
+	}
+	cols := tbl.Cols.Get()
 
 	for i := 0; i < len(m); i++ {
 		oneRow := tbl.Rows.Add()
@@ -65,7 +95,7 @@ func (t *tableHdlr) Deserialize(b []byte) (*Table, error) {
 }
 
 // Serialze turns a data-table into bytes of gob.
-func (t *tableHdlr) Serialize(tbl *Table) ([]byte, error) {
+func (t *Table) Serialize(tbl *Table) ([]byte, error) {
 	var encoded bytes.Buffer
 
 	rows := tbl.Rows.GetMap()
@@ -79,10 +109,35 @@ func (t *tableHdlr) Serialize(tbl *Table) ([]byte, error) {
 	// Add the table name to the top (first n bytes) of the byte array.
 	data := appendTableNameToData(tbl.Name, encoded.Bytes())
 
+	s64based := base64.StdEncoding.EncodeToString(data)
+	data = []byte(s64based)
+
 	return data, nil
 }
+func (t *Table) DeserializeFromFile(fPath string) (*Table, error) {
 
-const maxTableNameLength = 80
+	f, err := os.Open(fPath)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	reader.Close()
+	f.Close()
+
+	tbl, err := t.Deserialize(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return tbl, nil
+}
 
 func getTableNameFromData(data []byte) (string, []byte, error) {
 	var tblName string
@@ -111,6 +166,7 @@ func getTableNameFromData(data []byte) (string, []byte, error) {
 
 	return tblName, bu.Bytes(), nil
 }
+
 func appendTableNameToData(tName string, data []byte) []byte {
 	var tblNameB [maxTableNameLength]byte
 	tblName := []byte(tName)
@@ -130,22 +186,27 @@ func appendTableNameToData(tName string, data []byte) []byte {
 }
 
 // Create initializes an empty table.
-func (t *tableHdlr) Create(name string) *Table {
+func (t *Table) Create(name string) (*Table, error) {
+
+	if len(name) > 80 {
+		return nil, errors.New("maximum length for a table name is 80")
+	}
+
 	var tbl Table
 	tbl.Name = name
 
-	var col []Column
-	tbl.Columns = &colHdlr{col}
-
 	var rowMaps []RowMap
 	var rows []Row
-	tbl.Rows = &rowHdlr{rowMaps, rows, tbl.Columns}
+	var cols Cols
+	var colArry []Column
+	tbl.Rows = &Rows{rowMaps, rows, cols, colArry}
+	tbl.Cols = &Cols{colArry}
 
-	return &tbl
+	return &tbl, nil
 }
 
-func (t *tableHdlr) GetJSON(tbl *Table) string {
-	cols := tbl.Columns.Get()
+func (t *Table) GetJSON(tbl *Table) string {
+	cols := tbl.Cols.Get()
 	rows := tbl.Rows.GetMap()
 
 	var jsnArry []string
