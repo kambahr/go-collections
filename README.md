@@ -108,7 +108,7 @@ oneRow = tbl.Rows.Add()
 oneRow["State"] = "Georgia"
 oneRow["Capital"] = "Atlanta"
 
-cols := tbl.Columns.Get()
+cols := tbl.Cols.Get()
 rows := tbl.Rows.GetMap()
 
 fmt.Print(strings.Repeat(" ", 4))
