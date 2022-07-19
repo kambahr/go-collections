@@ -12,8 +12,7 @@ func NewCollection() *Collection {
 
 	var col *Cols
 	var rows *Rows
-	//var p *private
-	c.Table = &Table{"", col, rows} //, p}
+	c.Table = &Table{"", col, rows}
 
 	var tblArry []Table
 	c.Dataset = &Dataset{tblArry}

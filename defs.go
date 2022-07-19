@@ -3,7 +3,6 @@ package collections
 
 const maxTableNameLength = 80
 
-//go:generate stringer -type=SortOrder
 type SortOrder int
 
 const (
@@ -11,10 +10,9 @@ const (
 	Desc
 )
 
-//go:generate stringer -type=Field
-type Field int
-
 const (
-	Name Field = iota
-	X25
+	// row_id is the array-index of a Row. It is only
+	// used by IRow to locate a row in the []Row array.
+	row_id         = "_rowid_"
+	col_start_indx = 0
 )

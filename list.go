@@ -26,7 +26,7 @@ type listHdlr struct {
 	List []Element
 
 	// searchResultIndex is used internally to mark the
-	// success of an IndexOf operation via the workers.
+	// success of an IndexOf operation via workers.
 	searchResultIndex int
 
 	AllowDuplicates bool
@@ -587,11 +587,6 @@ func (c *listHdlr) Deserialize(b []byte) ([]Element, error) {
 	if err != nil {
 		return nil, err
 	}
-	// buf := bytes.NewReader(b)
-	// err = gob.NewDecoder(buf).Decode(&m)
-	// if err != nil && err.Error() != "EOF" {
-	// 	return nil, err
-	// }
 
 	if m == nil || len(m) == 0 {
 		return nil, errors.New("no items found")
@@ -656,7 +651,6 @@ func (c *listHdlr) DeserializeFromFile(fPath string) ([]Element, error) {
 func (c *listHdlr) SerializeToFile(fPath string) error {
 
 	var data []byte
-	//var encoded bytes.Buffer
 
 	items := c.GetMap()
 	b, err := json.Marshal(items)
@@ -665,14 +659,6 @@ func (c *listHdlr) SerializeToFile(fPath string) error {
 	}
 	s64based := base64.StdEncoding.EncodeToString(b)
 	data = []byte(s64based)
-
-	// encode := gob.NewEncoder(&encoded)
-	// err := encode.Encode(items)
-	// if err != nil {
-	// 	return err
-	// }
-	// s64based := base64.StdEncoding.EncodeToString(encoded.Bytes())
-	// data = []byte(s64based)
 
 	// Compress before writing to file.
 	f, err := os.Create(fPath)

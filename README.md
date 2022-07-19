@@ -11,39 +11,16 @@ The *collection* package implements a key/value List and a rows/columns Table.
 - Includes KeyExists(), ValueExists() methods to avoid duplicates.
 - Remove and Insert by key/value or array index.
 
-#### Methods
-```go
-	Add(k string, v interface{}) error
-	Count() int
-	Empty()
-	KeyExists(k string) bool
-	ValueExists(v string) bool
-	Get() *[]Element
-	GetItem(i int) (Element, error)
-	SetItem(i int, v interface{}) error
-	GetJSON() string
-	Map() map[string]interface{}
-	IndexOfKey(key string) int
-	IndexOfValue(v interface{}) int
-	InsertAt(i int, k string, v interface{}) error
-	RemoveAt(i int)
-	RemoveByKey(k string)
-	RemoveByValue(v interface{})
-	SortByKey(order SortOrder)
-	SortByValue(order SortOrder)
-	SetKey(oldKey string, newkey string) error
-	SetValue(k string, v interface{}) error
-	GetValue(key string) (interface{}, error)
-```
-
 #### Example
 ```go
 var coll = collections.NewCollection()
 tx := time.Now()
 for i := 0; i < 1000000; i++ {
    k := fmt.Sprintf("%d", i)
-   // Add different types
+
+// Add different types
    var v interface{}
+
    if i%2 == 0 {
       v = fmt.Sprintf("%d Green Dolphin Street", i)
    } else {
@@ -77,18 +54,6 @@ Table is a classic representation of a data-table with rows and columns.
 - Access rows via Map or Indexed Array. 
 - Add a tag for selected rows.
 
-#### Methods (Rows)
-```go
-AddWithTag(tag string) RowMap
-Add() RowMap
-Count() int
-GetMaps() []RowMap
-GetArray() []Row
-GetRow(inx int) Row
-GetRowMap(i int) RowMap
-Clear()
-```
-
 #### Example
 ```go
 var coll = collections.NewCollection()
@@ -108,7 +73,7 @@ oneRow = tbl.Rows.Add()
 oneRow["State"] = "Georgia"
 oneRow["Capital"] = "Atlanta"
 
-cols := tbl.Cols.Get()
+cols := tbl.Columns.Get()
 rows := tbl.Rows.GetMap()
 
 fmt.Print(strings.Repeat(" ", 4))
@@ -131,4 +96,15 @@ State Capital
 Maine Augusta 
 Oregon Salem 
 Georgia Atlanta 
+
+// Row examples:
+
+// Get a row
+tbl.Rows.GetRows()[0][10] // row, col indexes
+
+// Get a row
+tbl.Rows.GetMap()[0]       // row index, map
+
+// Get a single column in a row
+tbl.Rows.GetMap()[0]["my-column-name"] // row index, map-string-value
 ```

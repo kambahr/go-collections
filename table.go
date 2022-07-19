@@ -16,16 +16,22 @@ import (
 // ITable is the table interface.
 type ITable interface {
 	Create(name string) (*Table, error)
+
+	// GetJSON gets a json string of the entire table.
 	GetJSON(tbl *Table) string
 
+	// Serialize create a []byte representation of the entire
+	// table, which can written to disk.
 	Serialize(tbl *Table) ([]byte, error)
+
+	// Deserialize transforms []byte to *Table.
 	Deserialize(data []byte) (*Table, error)
 
 	SerializeToFile(tbl *Table, fPath string) error
 	DeserializeFromFile(fPath string) (*Table, error)
 }
 
-// tableHdlr is the handler for the ITable interface.
+// Table holds the structure for the ITable interface.
 type Table struct {
 	Name string
 	Cols IColumn
@@ -85,7 +91,7 @@ func (t *Table) Deserialize(b []byte) (*Table, error) {
 	cols := tbl.Cols.Get()
 
 	for i := 0; i < len(m); i++ {
-		oneRow := tbl.Rows.Add()
+		oneRow := tbl.Rows.New()
 		for j := 0; j < len(cols); j++ {
 			oneRow[cols[j].Name] = m[i][cols[j].Name]
 		}
@@ -98,7 +104,7 @@ func (t *Table) Deserialize(b []byte) (*Table, error) {
 func (t *Table) Serialize(tbl *Table) ([]byte, error) {
 	var encoded bytes.Buffer
 
-	rows := tbl.Rows.GetMap()
+	rows := tbl.Rows.GetRows()
 
 	encode := gob.NewEncoder(&encoded)
 	err := encode.Encode(rows)
@@ -189,25 +195,28 @@ func appendTableNameToData(tName string, data []byte) []byte {
 func (t *Table) Create(name string) (*Table, error) {
 
 	if len(name) > 80 {
-		return nil, errors.New("maximum length for a table name is 80")
+		return nil, errors.New("maximum length for a table name is 80 characters")
 	}
 
 	var tbl Table
 	tbl.Name = name
 
-	var rowMaps []RowMap
-	var rows []Row
-	var cols Cols
+	var row []Row
 	var colArry []Column
-	tbl.Rows = &Rows{rowMaps, rows, cols, colArry}
-	tbl.Cols = &Cols{colArry}
+	var tags []Tag
+	var rowHashes []RowHash
+	var sharedDataItems []SharedDataItem
+	var wrkGrpOccurenceCount int
+
+	tbl.Rows = &Rows{row, colArry, tags, rowHashes, sharedDataItems}
+	tbl.Cols = &Cols{colArry, tbl.Rows, wrkGrpOccurenceCount}
 
 	return &tbl, nil
 }
 
 func (t *Table) GetJSON(tbl *Table) string {
 	cols := tbl.Cols.Get()
-	rows := tbl.Rows.GetMap()
+	rows := tbl.Rows.GetRows()
 
 	var jsnArry []string
 
