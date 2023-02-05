@@ -103,12 +103,19 @@ func (t *Table) Deserialize(b []byte) (*Table, error) {
 // Serialze turns a data-table into bytes of gob.
 func (t *Table) Serialize(tbl *Table) ([]byte, error) {
 	var encoded bytes.Buffer
-
 	rows := tbl.Rows.GetRows()
 
+	tryx := 0
+
+lblAgain:
 	encode := gob.NewEncoder(&encoded)
 	err := encode.Encode(rows)
 	if err != nil {
+		if tryx < 1 && strings.Contains(err.Error(), "type not registered for interface: time.Time") {
+			gob.Register(time.Now())
+			tryx++
+			goto lblAgain
+		}
 		return nil, err
 	}
 
