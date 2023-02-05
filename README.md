@@ -57,45 +57,35 @@ Table is a classic representation of a data-table with rows and columns.
 #### Example
 ```go
 var coll = collections.NewCollection()
-tbl := coll.Table.Create("Test")
-tbl.Columns.Add("State")
-tbl.Columns.Add("Capital")
+	tbl, _ := coll.Table.Create("state-capital")
+	tbl.Cols.Add("state")
+	tbl.Cols.Add("capital")
 
-oneRow := tbl.Rows.Add()
-oneRow["State"] = "Maine"
-oneRow["Capital"] = "Augusta"
+	oneRow := tbl.Rows.New()
+	oneRow["state"] = "Maine"
+	oneRow["capital"] = "Augusta"
 
-oneRow = tbl.Rows.Add()
-oneRow["State"] = "Oregon"
-oneRow["Capital"] = "Salem"
+	oneRow = tbl.Rows.New()
+	oneRow["state"] = "Georgia"
+	oneRow["capital"] = "Atlanta"
 
-oneRow = tbl.Rows.Add()
-oneRow["State"] = "Georgia"
-oneRow["Capital"] = "Atlanta"
+	rows := tbl.Rows.GetRows()
+	cols := tbl.Cols.Get()
+	fmt.Printf("Stat%sCapital\n", strings.Repeat(" ", 5))
+	fmt.Println(strings.Repeat("-", 18))
+	for i := 0; i < len(rows); i++ {
+		v := rows[i][cols[0].Name].(string)
+		s := strings.Repeat(" ", 9)
+		d := len(s) - len(v)
+		s = fmt.Sprintf("%s%s", v, strings.Repeat(" ", d))
+		fmt.Println(s, rows[i][cols[1].Name])
+	}
 
-cols := tbl.Columns.Get()
-rows := tbl.Rows.GetMap()
 
-fmt.Print(strings.Repeat(" ", 4))
-for j := 0; j < len(cols); j++ {
-   fmt.Print(cols[j].Name, strings.Repeat(" ", 7))
-}
-fmt.Print("\n")
-fmt.Println("---------------------------")
-
-for i := 0; i < len(rows); i++ {
-   for j := 0; j < len(cols); j++ {
-      fmt.Print(strings.Repeat(" ", 4), rows[i][cols[j].Name], strings.Repeat(" ", 4))
-   }
-   fmt.Print("\n")
-}
-
-Output:
-State Capital 
----------------------------
-Maine Augusta 
-Oregon Salem 
-Georgia Atlanta 
+Stat     Capital
+------------------
+Maine     Augusta
+Georgia   Atlanta
 
 // Row examples:
 
